@@ -62,7 +62,7 @@ export default function BuyerOrderHistory() {
             <div className="text-center py-16 bg-[#061e15]/40 border border-[#0d3d2c]/40 rounded-2xl">
               <span className="text-3xl block mb-2">🥭</span>
               <p className="text-sm text-[#537362] font-semibold">
-                You haven't ordered any mango batches yet.
+                You haven&apos;t ordered any mango batches yet.
               </p>
             </div>
           ) : (

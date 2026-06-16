@@ -18,6 +18,7 @@ import {
   MdLogout,
   MdClose,
 } from "react-icons/md";
+import TestRoleSwitcher from "./TestRoleSwitcher";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -34,7 +35,7 @@ export default function Navbar() {
   const baseNavItems = [
     { href: "/", label: "Home", icon: <MdHome className="text-xl" /> },
     {
-      href: "/mangoes",
+      href: "/all-mangoes",
       label: "Browse Mangoes",
       icon: <MdList className="text-xl" />,
     },
@@ -88,6 +89,9 @@ export default function Navbar() {
             BuyMango
           </span>
         </Link>
+
+        {/* TEST ROLE SWITCHER PANEL */}
+        <TestRoleSwitcher />
 
         {/* MASTER CAPSULE CONTROL BAR (Desktop Viewports) */}
         <div className="hidden items-center bg-[#030f0a] border border-[#0d3d2c]/60 p-1.5 rounded-xl gap-3 md:flex">

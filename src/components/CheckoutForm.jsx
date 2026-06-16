@@ -2,8 +2,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { createOrderAction } from "@/app/dashboard/actions";
+import { toast } from "react-toastify";
 
-// Structured regional map for multi-tiered location selection
 const REGIONAL_LOCATION_MAP = {
   rajshahi: [
     "Boalia",
@@ -75,39 +78,39 @@ export default function CheckoutForm({
     weightAvailable: 450,
   },
 }) {
-  // Simulating active Better-Auth session lookup
-  const mockUserSession = {
-    name: "Md. Moziful Haque (Moni)",
-    email: "moni@example.com",
-  };
+  const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const activeUser = session?.user;
 
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
-    district: "", // Primary regional anchor
-    area: "", // Sub-district / Upazila context anchor
-    streetAddress: "", // Specific localized details (House, Road, Block)
+    district: "",
+    area: "",
+    streetAddress: "",
     requestedDate: "",
     quantityWeight: "10",
+    sellerMessage: "",
   });
+
+  useEffect(() => {
+    if (activeUser) {
+      setFormData((prev) => ({
+        ...prev,
+        name: activeUser.name || prev.name,
+      }));
+    }
+  }, [activeUser]);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
-  // Prefill baseline user profile name on lifecycle mount
-  useEffect(() => {
-    if (mockUserSession?.name) {
-      setFormData((prev) => ({ ...prev, name: mockUserSession.name }));
-    }
-  }, []);
-
-  // Handle cascading state reset for areas if the parent district changes
   const handleDistrictChange = (e) => {
     const selectedDistrict = e.target.value;
     setFormData((prev) => ({
       ...prev,
       district: selectedDistrict,
-      area: "", // Reset area choice since the parent geography broke context
+      area: "",
     }));
   };
 
@@ -121,7 +124,16 @@ export default function CheckoutForm({
     setLoading(true);
     setMessage({ type: "", text: "" });
 
-    if (parseFloat(formData.quantityWeight) > product.weightAvailable) {
+    if (!activeUser) {
+      const msg = "You must be signed in to purchase mango batches!";
+      toast.error(msg);
+      setMessage({ type: "error", text: msg });
+      setLoading(false);
+      return;
+    }
+
+    const orderQty = parseFloat(formData.quantityWeight);
+    if (orderQty > product.weightAvailable) {
       setMessage({
         type: "error",
         text: `Requested weight exceeds total available stock of ${product.weightAvailable}kg.`,
@@ -131,19 +143,22 @@ export default function CheckoutForm({
     }
 
     try {
-      // Re-compiling decentralized dropdown parameters back into unified schema formatting
       const fullCompiledAddress = `${formData.streetAddress}, ${formData.area}, ${formData.district.toUpperCase()}`;
 
       const payload = {
         productId: product._id,
-        buyerEmail: mockUserSession.email,
-        quantityWeight: parseFloat(formData.quantityWeight),
+        productName: product.title || product.name || "Premium Mangoes",
+        pricePerKg: product.pricePerKg,
+        priceTotal: orderQty * product.pricePerKg,
+        buyerEmail: activeUser.email,
+        quantityWeight: orderQty,
         deliveryDetails: {
           name: formData.name,
           phone: formData.phone,
-          address: fullCompiledAddress, // Clean compiled structural text tracking string
+          address: fullCompiledAddress,
           requestedDate: new Date(formData.requestedDate),
         },
+        sellerMessage: formData.sellerMessage.trim(),
         status: "pending",
         createdAt: new Date(),
         metadata: {
@@ -156,23 +171,29 @@ export default function CheckoutForm({
         "Sending secure structured order data to Server Action:",
         payload,
       );
-      // const response = await createOrderAction(payload);
+      const res = await createOrderAction(payload);
 
-      setMessage({
-        type: "success",
-        text: "Order placed successfully! The seller has been notified.",
-      });
+      if (res.success) {
+        toast.success("Order placed successfully!");
+        router.push("/dashboard");
+      } else {
+        setMessage({
+          type: "error",
+          text: res.error || "Failed to complete order booking.",
+        });
+        toast.error(res.error || "Failed to place order.");
+      }
     } catch (err) {
       setMessage({
         type: "error",
         text: err.message || "Failed to complete order booking.",
       });
+      toast.error(err.message || "Failed to place order.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Extract valid array subset mapping to current structural UI dropdown conditions
   const availableAreas = formData.district
     ? REGIONAL_LOCATION_MAP[formData.district]
     : [];
@@ -180,7 +201,6 @@ export default function CheckoutForm({
   return (
     <div className="w-full min-h-[85vh] bg-[#04140e] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
       <div className="max-w-xl w-full bg-[#061e15]/80 border border-[#0d3d2c]/60 rounded-2xl p-8 backdrop-blur-md shadow-2xl shadow-black/50 grid grid-cols-1 gap-6">
-        {/* Header Block */}
         <div>
           <h2 className="text-2xl font-black text-[#f4f7f4] tracking-tight mb-2 drop-shadow-[0_2px_8px_rgba(163,245,210,0.15)]">
             Secure Delivery Checkout
@@ -191,7 +211,6 @@ export default function CheckoutForm({
           </p>
         </div>
 
-        {/* Dynamic Product Brief Summary Box */}
         <div className="bg-[#030f0a] border border-[#0d3d2c]/40 p-4 rounded-xl flex justify-between items-center text-xs">
           <div>
             <span className="text-[#426351] block uppercase tracking-wider font-bold text-[9px] mb-0.5">
@@ -205,7 +224,7 @@ export default function CheckoutForm({
             <span className="text-[#426351] block uppercase tracking-wider font-bold text-[9px] mb-0.5">
               Price Bracket
             </span>
-            <span className="text-brand-orange font-black text-base">
+            <span className="text-[#ff8c00] font-black text-base">
               ৳{product.pricePerKg}{" "}
               <span className="text-[10px] text-[#426351] font-bold">/ KG</span>
             </span>
@@ -226,7 +245,6 @@ export default function CheckoutForm({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Input: Order Quantity Weight */}
             <div className="space-y-1.5">
               <label
                 htmlFor="quantityWeight"
@@ -247,7 +265,6 @@ export default function CheckoutForm({
               />
             </div>
 
-            {/* Input: Requested Wanted Delivery Date */}
             <div className="space-y-1.5">
               <label
                 htmlFor="requestedDate"
@@ -267,7 +284,6 @@ export default function CheckoutForm({
             </div>
           </div>
 
-          {/* Input: Recipient Name (Pre-filled but Editable) */}
           <div className="space-y-1.5">
             <label
               htmlFor="name"
@@ -287,7 +303,6 @@ export default function CheckoutForm({
             />
           </div>
 
-          {/* Input: Phone Number */}
           <div className="space-y-1.5">
             <label
               htmlFor="phone"
@@ -307,9 +322,7 @@ export default function CheckoutForm({
             />
           </div>
 
-          {/* CASCADING GEOGRAPHY FLOW ZONE */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Dropdown Input: Target District */}
             <div className="space-y-1.5">
               <label
                 htmlFor="district"
@@ -356,7 +369,6 @@ export default function CheckoutForm({
               </div>
             </div>
 
-            {/* Dropdown Input: Target Local Area / Upazila */}
             <div className="space-y-1.5">
               <label
                 htmlFor="area"
@@ -401,7 +413,6 @@ export default function CheckoutForm({
             </div>
           </div>
 
-          {/* Input: Remaining Specific Full Address Line */}
           <div className="space-y-1.5">
             <label
               htmlFor="streetAddress"
@@ -409,23 +420,41 @@ export default function CheckoutForm({
             >
               Remaining Full Address (House, Road, Holding)
             </label>
-            <textarea
+            <input
               id="streetAddress"
               name="streetAddress"
+              type="text"
               required
-              rows={2}
               value={formData.streetAddress}
               onChange={handleChange}
-              placeholder="e.g. House #24B, Road #5, Sector 3, Holding details..."
+              placeholder="e.g. House #24B, Road #5, Sector 3"
+              className="w-full h-11 bg-[#030f0a] border border-[#0d3d2c]/60 rounded-xl px-4 text-sm text-[#e1ece6] placeholder-[#426351] focus:outline-none focus:border-[#145c43] transition-colors duration-200"
+            />
+          </div>
+
+          {/* NEW FIELD: Message to Seller Textarea */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="sellerMessage"
+              className="text-xs font-bold uppercase tracking-wider text-[#7ea08d] block"
+            >
+              Message to Seller (Optional)
+            </label>
+            <textarea
+              id="sellerMessage"
+              name="sellerMessage"
+              rows={2}
+              value={formData.sellerMessage}
+              onChange={handleChange}
+              placeholder="Add courier instructions, ripening state requests, or custom packaging preferences..."
               className="w-full bg-[#030f0a] border border-[#0d3d2c]/60 rounded-xl p-4 text-sm text-[#e1ece6] placeholder-[#426351] focus:outline-none focus:border-[#145c43] transition-colors duration-200 resize-none"
             />
           </div>
 
-          {/* Checkout Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 mt-2 bg-[#08241a] text-[#0ed194] border border-[#0ed194]/20 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 hover:bg-brand-orange hover:text-[#04140e] hover:border-transparent disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2"
+            className="w-full h-12 mt-2 bg-[#08241a] text-[#0ed194] border border-[#0ed194]/20 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 hover:bg-[#ff8c00] hover:text-[#04140e] hover:border-transparent disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center gap-2"
           >
             {loading ? (
               <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />

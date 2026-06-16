@@ -2,6 +2,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createMangoListingAction } from "@/app/dashboard/actions";
+import { toast } from "react-toastify";
 
 const BANGLADESH_DISTRICTS = [
   "Rajshahi",
@@ -14,6 +17,7 @@ const BANGLADESH_DISTRICTS = [
 ];
 
 export default function AddMangoForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -38,33 +42,41 @@ export default function AddMangoForm() {
 
     try {
       const payload = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
         pricePerKg: parseFloat(formData.pricePerKg),
         weightAvailable: parseFloat(formData.weightAvailable),
-        createdAt: new Date(),
-        attributes: {},
+        district: formData.district,
+        imageUrl: formData.imageUrl,
+        status: formData.status,
       };
 
       console.log("Submitting Product Data to Next.js Server Action:", payload);
 
-      // Example call:
-      // const response = await createMangoListingAction(payload);
+      const res = await createMangoListingAction(payload);
 
-      setMessage({ type: "success", text: "Mango batch listed successfully!" });
-      setFormData({
-        title: "",
-        description: "",
-        pricePerKg: "",
-        weightAvailable: "",
-        district: "",
-        imageUrl: "",
-        status: "available",
-      });
+      if (res.success) {
+        toast.success("Mango batch listed successfully!");
+        setFormData({
+          title: "",
+          description: "",
+          pricePerKg: "",
+          weightAvailable: "",
+          district: "",
+          imageUrl: "",
+          status: "available",
+        });
+        router.push("/dashboard");
+      } else {
+        setMessage({ type: "error", text: res.error || "Failed to publish mango batch." });
+        toast.error(res.error || "Failed to publish mango batch.");
+      }
     } catch (err) {
       setMessage({
         type: "error",
         text: err.message || "Failed to publish mango batch.",
       });
+      toast.error(err.message || "Failed to publish mango batch.");
     } finally {
       setLoading(false);
     }

@@ -1,119 +1,10 @@
 // src/components/MangoGrid.jsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
-
-const INITIAL_PRODUCTS = [
-  {
-    _id: "1",
-    title: "Premium Khirsapat (Himsagar)",
-    description:
-      "Naturally ripened, exceptionally sweet, and fiberless. Harvested fresh from the orchard upon order confirmation.",
-    pricePerKg: 95,
-    weightAvailable: 450,
-    district: "rajshahi",
-    status: "available",
-    image:
-      "https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "2",
-    title: "Authentic Langra Mangoes",
-    description:
-      "Known for its distinct strong aroma and rich, sweet green-tinged flesh. Sourced directly from old orchards.",
-    pricePerKg: 85,
-    weightAvailable: 120,
-    district: "chapainawabganj",
-    status: "available",
-    image:
-      "https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "3",
-    title: "Amrapali Bulk Batch",
-    description:
-      "Deep orange flesh with a high sugar profile. Perfect for families or local retail shops looking for premium weight.",
-    pricePerKg: 110,
-    weightAvailable: 0,
-    status: "out_of_stock",
-    district: "satkhira",
-    image:
-      "https://images.unsplash.com/photo-1591073113125-e46713c829ed?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "1",
-    title: "Premium Khirsapat (Himsagar)",
-    description:
-      "Naturally ripened, exceptionally sweet, and fiberless. Harvested fresh from the orchard upon order confirmation.",
-    pricePerKg: 95,
-    weightAvailable: 450,
-    district: "rajshahi",
-    status: "available",
-    image:
-      "https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "2",
-    title: "Authentic Langra Mangoes",
-    description:
-      "Known for its distinct strong aroma and rich, sweet green-tinged flesh. Sourced directly from old orchards.",
-    pricePerKg: 85,
-    weightAvailable: 120,
-    district: "chapainawabganj",
-    status: "available",
-    image:
-      "https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "3",
-    title: "Amrapali Bulk Batch",
-    description:
-      "Deep orange flesh with a high sugar profile. Perfect for families or local retail shops looking for premium weight.",
-    pricePerKg: 110,
-    weightAvailable: 0,
-    status: "out_of_stock",
-    district: "satkhira",
-    image:
-      "https://images.unsplash.com/photo-1591073113125-e46713c829ed?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "1",
-    title: "Premium Khirsapat (Himsagar)",
-    description:
-      "Naturally ripened, exceptionally sweet, and fiberless. Harvested fresh from the orchard upon order confirmation.",
-    pricePerKg: 95,
-    weightAvailable: 450,
-    district: "rajshahi",
-    status: "available",
-    image:
-      "https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "2",
-    title: "Authentic Langra Mangoes",
-    description:
-      "Known for its distinct strong aroma and rich, sweet green-tinged flesh. Sourced directly from old orchards.",
-    pricePerKg: 85,
-    weightAvailable: 120,
-    district: "chapainawabganj",
-    status: "available",
-    image:
-      "https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?auto=format&fit=crop&q=80&w=600",
-  },
-  {
-    _id: "3",
-    title: "Amrapali Bulk Batch",
-    description:
-      "Deep orange flesh with a high sugar profile. Perfect for families or local retail shops looking for premium weight.",
-    pricePerKg: 110,
-    weightAvailable: 0,
-    status: "out_of_stock",
-    district: "satkhira",
-    image:
-      "https://images.unsplash.com/photo-1591073113125-e46713c829ed?auto=format&fit=crop&q=80&w=600",
-  },
-];
+import { getStorefrontProductsAction } from "@/app/dashboard/actions";
 
 const DISTRICTS = [
   { value: "all", label: "All Districts" },
@@ -123,12 +14,30 @@ const DISTRICTS = [
 ];
 
 export default function MangoGrid() {
+  const router = useRouter();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterDistrict, setFilterDistrict] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 3; // Easily adjust how many cards display per layout matrix page
+  const itemsPerPage = 3;
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await getStorefrontProductsAction();
+        if (res.success && res.data) {
+          setProducts(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load storefront products:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProducts();
+  }, []);
 
   // 1. Core Filter Pipeline
-  const filteredProducts = INITIAL_PRODUCTS.filter((product) => {
+  const filteredProducts = products.filter((product) => {
     if (filterDistrict !== "all" && product.district !== filterDistrict)
       return false;
     return product.status !== "deleted";
@@ -192,7 +101,27 @@ export default function MangoGrid() {
         </div>
 
         {/* Product Cards Core Grid Layout */}
-        {currentItemsSlice.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="animate-pulse bg-[#061e15]/80 border border-[#0d3d2c]/60 rounded-2xl p-5 flex flex-col justify-between space-y-4 h-full min-h-[380px]"
+              >
+                <div className="w-full aspect-[4/3] bg-[#030f0a] rounded-xl animate-pulse" />
+                <div className="space-y-2">
+                  <div className="h-5 bg-[#0d3d2c] rounded w-2/3" />
+                  <div className="h-3 bg-[#0d3d2c] rounded w-full" />
+                </div>
+                <div className="pt-3 border-t border-[#0d3d2c]/40 flex items-center justify-between">
+                  <div className="h-4 bg-[#0d3d2c] rounded w-1/4" />
+                  <div className="h-4 bg-[#0d3d2c] rounded w-1/4" />
+                </div>
+                <div className="h-11 bg-[#0d3d2c] rounded-xl w-full" />
+              </div>
+            ))}
+          </div>
+        ) : currentItemsSlice.length === 0 ? (
           <div className="text-center py-16 bg-[#061e15]/40 border border-[#0d3d2c]/40 rounded-2xl">
             <p className="text-sm text-[#537362] font-bold">
               No active harvest batches running in this region.
@@ -202,6 +131,7 @@ export default function MangoGrid() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {currentItemsSlice.map((product) => {
               const isOutOfStock = product.status === "out_of_stock";
+              const imageSrc = product.imageUrl || product.image || "https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&q=80&w=600";
 
               return (
                 <div
@@ -211,10 +141,11 @@ export default function MangoGrid() {
                   {/* Image Wrapper with Deep Green Mix-blend styling */}
                   <div className="relative w-full aspect-[4/3] bg-[#030f0a] overflow-hidden">
                     <Image
-                      src={product.image}
+                      src={imageSrc}
                       alt={product.title}
                       fill
                       className="object-cover transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
+                      unoptimized={imageSrc.startsWith("http")}
                     />
 
                     {/* Glowing Teal/Green Origin Badge */}
@@ -271,7 +202,8 @@ export default function MangoGrid() {
                     {/* Deep Teal Button styling containing subtle glowing hover states */}
                     <button
                       disabled={isOutOfStock}
-                      className="w-full h-11 bg-[#08241a] text-[#0ed194] border border-[#0ed194]/20 rounded-xl font-bold text-xs transition-all duration-200 hover:bg-brand-orange hover:text-[#04140e] hover:border-transparent disabled:opacity-20 disabled:pointer-events-none flex items-center justify-center gap-2"
+                      onClick={() => router.push(`/checkout?productId=${product._id}`)}
+                      className="w-full h-11 bg-[#08241a] text-[#0ed194] border border-[#0ed194]/20 rounded-xl font-bold text-xs transition-all duration-200 hover:bg-brand-orange hover:text-[#04140e] hover:border-transparent disabled:opacity-20 disabled:pointer-events-none flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Order Batch</span>
                       <svg
@@ -291,7 +223,7 @@ export default function MangoGrid() {
         )}
 
         {/* 3. PAGINATION INTERACTION BLOCK */}
-        {totalPages > 1 && (
+        {!loading && totalPages > 1 && (
           <div className="pt-6 border-t border-[#0d3d2c]/20 flex items-center justify-center gap-2">
             {/* Backward Button */}
             <button
@@ -321,7 +253,7 @@ export default function MangoGrid() {
                   onClick={() => handlePageChange(pageNum)}
                   className={`w-9 h-9 rounded-xl text-xs font-bold transition-all duration-200 ${
                     activePage === pageNum
-                      ? "bg-brand-orange text-[#04140e] font-black"
+                      ? "bg-[#0ed194] text-[#04140e] font-black"
                       : "bg-[#030f0a] border border-[#0d3d2c]/40 text-[#537362] hover:text-[#a3b899] hover:border-[#145c43]"
                   }`}
                 >
@@ -355,3 +287,4 @@ export default function MangoGrid() {
     </section>
   );
 }
+

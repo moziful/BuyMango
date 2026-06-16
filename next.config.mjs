@@ -15,6 +15,15 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/mangoes',
+        destination: '/all-mangoes',
+        permanent: true,
+      },
+    ];
+  },
   /* config options here */
 };
 

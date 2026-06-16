@@ -3,8 +3,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { toast } from "react-toastify";
 
 export default function SignInForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -25,14 +29,23 @@ export default function SignInForm() {
 
     try {
       console.log("Logging in with credentials payload:", formData);
-      // Example call for Better-Auth credential login execution:
-      // await authClient.signIn.email({
-      //   email: formData.email,
-      //   password: formData.password,
-      //   callbackURL: '/dashboard' // Dynamically shifts via layout middleware later
-      // });
+      const { data, error: apiError } = await authClient.signIn.email({
+        email: formData.email,
+        password: formData.password,
+        callbackURL: '/dashboard'
+      });
+
+      if (apiError) {
+        setError(apiError.message || "Invalid email or password combination.");
+        toast.error(apiError.message || "Invalid email or password combination.");
+        return;
+      }
+
+      toast.success("Signed in successfully!");
+      router.push("/dashboard");
     } catch (err) {
       setError(err.message || "Invalid email or password combination.");
+      toast.error(err.message || "Invalid email or password combination.");
     } finally {
       setLoading(false);
     }
@@ -43,13 +56,13 @@ export default function SignInForm() {
     setError("");
     try {
       console.log("Initiating Google OAuth callback verification pipeline...");
-      // Example Better-Auth Social login execution:
-      // await authClient.signIn.social({
-      //   provider: 'google',
-      //   callbackURL: '/dashboard'
-      // });
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: '/dashboard'
+      });
     } catch (err) {
       setError("Google authentication failed.");
+      toast.error("Google authentication failed.");
       setSocialLoading(false);
     }
   };
@@ -186,9 +199,9 @@ export default function SignInForm() {
         {/* Account Swap Anchor Link */}
         <div className="text-center mt-6">
           <p className="text-xs text-[#537362] font-semibold">
-            Don't have a secure profile yet?{" "}
+            Don&apos;t have a secure profile yet?{" "}
             <Link
-              href="/register"
+              href="/auth/signup"
               className="text-[#0ed194] hover:underline font-bold"
             >
               Register Here

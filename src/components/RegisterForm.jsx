@@ -2,8 +2,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { toast } from "react-toastify";
+import Link from "next/link";
 
 export default function RegisterForm() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -28,17 +33,37 @@ export default function RegisterForm() {
     setLoading(true);
     setError("");
 
+    // 1. Password Complexity Validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z]).{6,}$/;
+    if (!passwordRegex.test(formData.password)) {
+      const msg = "Password must be at least 6 characters long and include both uppercase and lowercase letters.";
+      setError(msg);
+      toast.error(msg);
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log("Registering user payload:", formData);
-      // Example call for Better-Auth client credentials:
-      // await authClient.signUp.email({
-      //   email: formData.email,
-      //   password: formData.password,
-      //   name: formData.name,
-      //   data: { role: formData.role }
-      // });
+      const { data, error: apiError } = await authClient.signUp.email({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        data: { role: formData.role },
+        callbackURL: '/auth/signin'
+      });
+
+      if (apiError) {
+        setError(apiError.message || "An error occurred during account creation.");
+        toast.error(apiError.message || "Signup failed.");
+        return;
+      }
+
+      toast.success("Account created successfully!");
+      router.push("/auth/signin");
     } catch (err) {
       setError(err.message || "An error occurred during account creation.");
+      toast.error("An unexpected error occurred during signup.");
     } finally {
       setLoading(false);
     }
@@ -51,13 +76,13 @@ export default function RegisterForm() {
       console.log(
         `Initiating Google OAuth with planned role: ${formData.role}`,
       );
-      // Example Better-Auth Social sign-in setup:
-      // await authClient.signIn.social({
-      //   provider: 'google',
-      //   callbackURL: `/dashboard/sync-role?role=${formData.role}` // Sync role logic via callback
-      // });
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: `/dashboard?role=${formData.role}`
+      });
     } catch (err) {
       setError("Google authentication failed.");
+      toast.error("Google authentication failed.");
       setSocialLoading(false);
     }
   };
@@ -235,6 +260,19 @@ export default function RegisterForm() {
             )}
           </button>
         </form>
+
+        {/* Account Swap Anchor Link */}
+        <div className="text-center mt-6">
+          <p className="text-xs text-[#537362] font-semibold">
+            Already registered in our orchards?{" "}
+            <Link
+              href="/auth/signin"
+              className="text-[#0ed194] hover:underline font-bold"
+            >
+              Sign In Here
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
